@@ -1,0 +1,14 @@
+/**
+ * @file vfsdriver-indexeddb/src/index.ts
+ * v4.1: Path-based IndexedDB storage backend.
+ */
+
+export { IndexedDBBackend, openIndexedDBBackend, type IndexedDBBackendOptions, type VerifyResult } from './idb-backend';
+export { IDBRecordStore } from './record-store';
+
+export {
+    openDB, req, collectCursor, txDone,
+    ALL_STORES, REQUIRED_STORES, DB_VERSION, STORE_NODES, STORE_RECORDS, STORE_TAGS,
+} from './utils';
+
+export type { IndexedDBStorageAccess } from './storage-access';
