@@ -6,7 +6,7 @@ export default defineConfig({
     dts: true,
     clean: true,
     sourcemap: true,
-    external: ['@itookit/vfs-core'],
+    external: ['@nestos/vfs-core'],
     splitting: false,
     treeshake: true,
     platform: 'browser',

@@ -1,5 +1,5 @@
 /**
- * Shared test helpers for @itookit/vfsdriver-indexeddb.
+ * Shared test helpers for @nestos/vfsdriver-indexeddb.
  * Each backend gets a unique dbName so tests never share state.
  */
 

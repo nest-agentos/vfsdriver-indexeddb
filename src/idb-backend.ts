@@ -20,8 +20,8 @@ import type {
     RecordQueryResult,
     RecordValue,
     RecordWalkOptions,
-} from '@itookit/vfs-core';
-import { DEVICE_HANDLER_METADATA_KEY } from '@itookit/vfs-core';
+} from '@nestos/vfs-core';
+import { DEVICE_HANDLER_METADATA_KEY } from '@nestos/vfs-core';
 import { openDB, req, collectCursor, REQUIRED_STORES, DB_VERSION, STORE_NODES, STORE_TAGS } from './utils';
 import { IDBRecordStore, createRecordStore, ensureRecordIndexes } from './record-store';
 import { STORE_RECORDS } from './utils';
@@ -762,7 +762,7 @@ function toFSNode(entry: NodeEntry): FSNode {
 
 /**
  * Open (and initialize) an IndexedDB storage backend.
- * Symmetric with `openLocalFSBackend` from @itookit/vfsdriver-local.
+ * Symmetric with `openLocalFSBackend` from @nestos/vfsdriver-local.
  */
 export async function openIndexedDBBackend(options?: IndexedDBBackendOptions): Promise<IndexedDBBackend> {
     const backend = new IndexedDBBackend(options);

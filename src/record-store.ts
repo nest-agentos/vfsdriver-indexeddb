@@ -22,7 +22,7 @@ import type {
     RecordQueryOptions,
     RecordQueryResult,
     RecordWalkOptions,
-} from '@itookit/vfs-core';
+} from '@nestos/vfs-core';
 import { req, collectCursor, deleteCursor, STORE_RECORDS } from './utils';
 
 interface RecordRow {
