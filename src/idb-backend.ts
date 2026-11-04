@@ -541,8 +541,14 @@ class LazyRecordStore implements IRecordStore {
         return new IDBRecordStore(this.roStore()).queryRecordFields(path, query, options);
     }
 
-    async transaction<T>(operation: (tx: IRecordTransaction) => Promise<T>): Promise<T> {
-        const transaction = this.getDB().transaction(STORE_RECORDS, 'readwrite');
+    transaction<T>(operation: (tx: IRecordTransaction) => Promise<T>): Promise<T> {
+        return this.runTransaction(operation, 'readwrite');
+    }
+    readTransaction<T>(operation: (tx: IRecordTransaction) => Promise<T>): Promise<T> {
+        return this.runTransaction(operation, 'readonly');
+    }
+    private async runTransaction<T>(operation: (tx: IRecordTransaction) => Promise<T>, mode: IDBTransactionMode): Promise<T> {
+        const transaction = this.getDB().transaction(STORE_RECORDS, mode);
         const records = new IDBRecordStore(transaction.objectStore(STORE_RECORDS));
         const completed = waitForTransaction(transaction);
         try {

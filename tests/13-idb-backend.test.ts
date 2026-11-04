@@ -321,3 +321,34 @@ describe('IndexedDBBackend path model', () => {
 function uniqueName(prefix: string): string {
     return `${prefix}-${Date.now()}-${Math.random()}`;
 }
+
+it('uses readonly snapshots and bounds ordered record payloads at the IndexedDB query', async () => {
+    const backend = freshIDB('bounded-read'); await backend.init();
+    try {
+        await backend.records.setAllRecordFields('/rows', Object.fromEntries(
+            Array.from({length: 200}, (_, i) => [`recent/${String(i).padStart(3, '0')}`, i])));
+        const getAll = vi.spyOn(IDBObjectStore.prototype, 'getAll');
+        const transaction = vi.spyOn(IDBDatabase.prototype, 'transaction');
+        try {
+            const fields: string[] = [];
+            expect(await backend.records.walkRecordFields('/rows', field => {fields.push(field); return true;},
+                {prefix: 'recent/', offset: 20, limit: 15, order: 'key'})).toEqual({total: 200, processed: 15});
+            expect(fields[0]).toBe('recent/020'); expect(fields.at(-1)).toBe('recent/034');
+            expect(getAll.mock.calls.every(([, count]) => count === 15)).toBe(true);
+            expect(transaction.mock.calls.every(([, mode]) => mode === 'readonly')).toBe(true);
+            expect(await backend.records.readTransaction!(tx => tx.getRecordFields!('/rows', ['recent/001']))).toEqual({'recent/001': 1});
+        } finally {getAll.mockRestore(); transaction.mockRestore();}
+    } finally {await backend.close();}
+});
+
+it('seeks within the key index without cloning preceding values', async () => {
+    const backend = freshIDB('seek-read'); await backend.init();
+    try {
+        await backend.records.setAllRecordFields('/rows', Object.fromEntries(
+            Array.from({length: 100}, (_, i) => [`k/${String(i).padStart(3, '0')}`, i])));
+        const fields: string[] = [];
+        expect(await backend.records.walkRecordFields('/rows', field => {fields.push(field); return true;},
+            {prefix: 'k/', after: 'k/095', limit: 3, order: 'key'})).toEqual({total: 4, processed: 3});
+        expect(fields).toEqual(['k/096', 'k/097', 'k/098']);
+    } finally {await backend.close();}
+});

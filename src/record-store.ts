@@ -16,6 +16,7 @@
 
 import type {
     IRecordStore,
+    IRecordTransaction,
     RecordFieldRequest,
     RecordValue,
     RecordQuery,
@@ -33,6 +34,9 @@ interface RecordRow {
 
 export class IDBRecordStore implements IRecordStore {
     constructor(private readonly records: IDBObjectStore) {}
+
+    /** Already bound to the transaction supplied by LazyRecordStore. */
+    readTransaction<T>(operation: (records: IRecordTransaction) => Promise<T>): Promise<T> { return operation(this); }
 
     async getRecordField(path: string, field: string): Promise<RecordValue | undefined> {
         const row = await req<RecordRow | undefined>(
@@ -114,9 +118,12 @@ export class IDBRecordStore implements IRecordStore {
         callback: (field: string, value: RecordValue) => boolean | Promise<boolean>,
         options?: RecordWalkOptions,
     ): Promise<{ total: number; processed: number }> {
+        if (options?.order === 'key' && Number.isSafeInteger(options.limit) && options.limit! >= 0)
+            return this.walkKeyPage(path, callback, options);
         const prefix = options?.prefix;
         const rows = (await this.readRows(path, prefix))
-            .sort((left, right) => left.field.localeCompare(right.field));
+            .filter(row => options?.after === undefined || row.field > options.after)
+            .sort((left, right) => options?.order === 'key' ? (left.field < right.field ? -1 : left.field > right.field ? 1 : 0) : left.field.localeCompare(right.field));
         const total = rows.length;
         let processed = 0;
         const offset = options?.offset ?? 0;
@@ -126,6 +133,36 @@ export class IDBRecordStore implements IRecordStore {
             processed++;
         }
         return { total, processed };
+    }
+
+    private async walkKeyPage(path: string, callback: (field: string, value: RecordValue) => boolean | Promise<boolean>,
+        options: RecordWalkOptions): Promise<{total: number; processed: number}> {
+        const lower = options.prefix ?? '', upper: IDBValidKey = options.prefix === undefined ? [path, []] : [path, lower + '\uffff'];
+        const start = options.after !== undefined && options.after >= lower ? options.after : lower;
+        if (options.prefix !== undefined && start >= lower + '\uffff') return {total: 0, processed: 0};
+        const range = IDBKeyRange.bound([path, start], upper, options.after !== undefined && start === options.after, options.prefix !== undefined);
+        const offset = options.offset ?? 0, limit = options.limit!;
+        if (!Number.isSafeInteger(offset) || offset < 0) throw new Error('Invalid record page offset');
+        const total = req(this.records.count(range));
+        const page = limit === 0 ? Promise.resolve([]) : offset === 0 ? req<RecordRow[]>(this.records.getAll(range, limit))
+            : this.readKeyPage(range, upper, offset, limit, options.prefix !== undefined);
+        const [count, rows] = await Promise.all([total, page]);
+        let processed = 0;
+        for (const row of rows) {if (!(await callback(row.field, row.value))) break; processed++;}
+        return {total: count, processed};
+    }
+    private readKeyPage(range: IDBKeyRange, upper: IDBValidKey, offset: number, limit: number, upperOpen: boolean): Promise<RecordRow[]> {
+        return new Promise((resolve, reject) => {
+            const request = this.records.openKeyCursor(range); let advanced = false;
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor) {resolve([]); return;}
+                if (!advanced) {advanced = true; cursor.advance(offset); return;}
+                // Queue the bounded payload read inside the cursor callback to keep the IDB transaction alive.
+                req<RecordRow[]>(this.records.getAll(IDBKeyRange.bound(cursor.key, upper, false, upperOpen), limit)).then(resolve, reject);
+            };
+        });
     }
 
     /**
