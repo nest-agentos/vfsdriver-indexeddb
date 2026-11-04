@@ -1,6 +1,6 @@
 {
   "name": "@nestos/vfsdriver-indexeddb",
-  "version": "5.3.4",
+  "version": "0.5.1",
   "description": "IndexedDB storage backend for @nestos/vfs-core — persistent browser-side VFS driver.",
   "type": "module",
   "main": "./src/index.ts",
@@ -52,7 +52,7 @@
   "author": "lizlok@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@nestos/vfs-core": "5.3.3"
+    "@nestos/vfs-core": "^0.5.1"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.0.0",
